@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><meta charset="utf-8"></head>
+<body>
+<script src="three.js"></script>
+<script src="MTLLoader.js"></script>
+<script src="OBJLoader.js"></script>
+<script src="TrackballControls.js"></script>
+<script>
+// 기본 설정 변수(객체)들
+var camera, controls, scene, renderer;
+// 사용할 변수들 모음
+var group = new THREE.Object3D();
+// 마우스 위치
+var mouse, INTERSECTED;
+// 어떤 물체를 선택하는 지
+var raycaster;
+// Hue값을 바꿔주기 위한 변수
+var counterHue = 0;
+var cubes = [];
+var counterMotion = 0;
+var animationPlay = true;
+// 함수 호출
+init();
+animate();
+// 현재의 마우스 위치를 찾아내자.
+function onDocumentMouseMove( event ) {
+  event.preventDefault();
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+  //console.log('x: ' + mouse.x+ '|    y:'+ mouse.y);
+}
+function onDocumentClick( event ) {
+  event.preventDefault();
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+  //console.log('x: ' + mouse.x+ '|    y:'+ mouse.y);
+    
+    ///*
+    // 마우스의 위치를 Vector3로 3차원 변경
+    var vector = new THREE.Vector3( mouse.x, mouse.y, 0.5 );
+    // camera의 바라보는 화면에 대입해서 마우스의 위치를 변경
+    vector.unproject( camera );
+    // 카메라의 위치와 카메라의 바라보는 화면 대비 마우스가 향하는 방향으로 레이저를 하나 쏜다.
+    raycaster = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+    // 물체와의 교차점이 있는지, 즉 레이저와 만나는 물체가 있는지 찾아낸다.
+    var intersects = raycaster.intersectObjects( group.children );
+    // 만나는 물체가 하나 이상이면,
+    if ( intersects.length > 0 ) {
+        // 만난 물체가 이전 프레임에 이미 선택한 물체가 아니라면,
+        // 이런 건 왜 해주냐하면 한번 선택된 물체는 마우스가 벗어나지 않는 이상
+        // 추가로 처리해줄 이유가 없기 때문이다.
+        if ( INTERSECTED != intersects[ 0 ].object ) {
+            // 기존에 만났던 물체가 있다면? 
+            // 이건 이전 물체위에 마우스가 있다가 다른 물체로 옮겨 갔을 경우를 의미한다.
+            if ( INTERSECTED ) {
+                // 새로 만난 물체가 있으니, 이전 물체는 원래 색으로 돌려주기.
+                INTERSECTED.material.color.setHex( INTERSECTED.currentHex );
+            }
+            // 새로 만난 물체를 INTERSECTED로 대입해주기. 
+            INTERSECTED = intersects[ 0 ].object;
+            // 나중에 물체에서 마우스가 튕겨 나가면 원래의 물체 색으로 돌려놓기 위해 저장하는 변수
+            INTERSECTED.currentHex = INTERSECTED.material.color.getHex();
+            INTERSECTED.material.color.setHex( 0xffffff );
+        }
+    }
+    //*/
+}
+// 화면 크기가 바뀌었다면 바로 그리기 캔버스의 크기도 변경
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize( window.innerWidth, window.innerHeight );
+}
+// 초기화 코드 모음
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color( 0x000000 );
+    scene.fog = new THREE.Fog( 0x000000, 0, 5 );
+    camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 5 );
+    camera.position.set( 1.8, 1.8, 1.8 );
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.autoClear = false;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    document.body.appendChild( renderer.domElement );
+    // 트랙볼을 camera 기준으로 생성
+    controls = new THREE.TrackballControls( camera );
+    // 좌측 마우스 버튼 드래그로 회전할 떄 회전 속도
+    controls.rotateSpeed = 1.0;
+    // 스크롤윌로 줌 인아웃할 떄 움직임 속도
+    controls.zoomSpeed = 1.2;
+    // 우측 마우스, 스크롤 휠 버튼 드래그로 화면을 움직일 때 패닝 속도
+    controls.panSpeed = 0.8;
+    // 줌을 안할거면 true로 바꾸고 줌인아웃을 할거면 false
+    controls.noZoom = false;
+    // 패닝을 안할거면 true로 바꾸고 패닝을 할거면 false
+    controls.noPan = false;
+    // 움직일 때 약간의 탠션을 주려면 false, 탠션이 없다면 true
+    controls.staticMoving = false;
+    // 탠션의 속도로 1에 가까워지면 텐션이 없고 0에 가까워지면 튕기거나 느슨히 움직이는 느낌이 난다.
+    controls.dynamicDampingFactor = 0.2;
+    var ambient = new THREE.AmbientLight( 0x111111 );
+    scene.add( ambient );
+    light = new THREE.SpotLight( 0xffffff, 1, 0, Math.PI / 2 );
+    light.position.set( 3, 4, 2.4 );
+    light.target.position.set( 0, 0, 0 );
+    light.castShadow = true;
+    light.shadow = new THREE.LightShadow( new THREE.PerspectiveCamera( 50, 1, 0.1, 250 ) );
+    light.shadow.bias = 0.0001;
+    light.shadow.mapSize.width = 4096;
+    light.shadow.mapSize.height = 4096;
+    scene.add( light );
+    // 마우스가 바라보는 물체를 찾아주기 위해 Raycaster 객체 만들기
+    raycaster = new THREE.Raycaster();
+    // 마우스 위치를 저장하는 객체
+    mouse = new THREE.Vector2();
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 여기부터는 그림 그릴 물체를 구성하면 된다.
+    // MTL Loader 만들기
+    var mtlLoader = new THREE.MTLLoader();
+    // 외부에서 .mtl 파일을 먼저 불러오기
+    mtlLoader.load( 'sul.mtl', function ( materials ) {
+        // mtl파일에서 재질을 불러온다. (여러 개일 가능성도 있음)
+        materials.preload();
+        // OBJ Loader 만들기
+        var loader = new THREE.OBJLoader();
+        // obj파일에 재질들을 적용하기
+        loader.setMaterials( materials );
+        // obj파일 불러오기
+        loader.load( 'sul.obj', function ( obj ) {
+               // obj 안을 하나씩 훑어보기
+            obj.traverse(function (child) {
+                // 그 중 하나가 메쉬라면,
+                if (child instanceof THREE.Mesh) {
+                    // 메쉬에 그림자 적용
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    // group에 다 넣어버리기
+                    group.add(child);
+                }
+            });
+        });
+    });
+    var geometryP = new THREE.PlaneGeometry( 10, 10, 50, 50 );
+    var materialP = new THREE.MeshBasicMaterial( {color: 0xff0000, side: THREE.DoubleSide} );
+    var plane = new THREE.Mesh( geometryP, materialP );
+    plane.rotation.x = -Math.PI/2.0;
+    plane.position.set(0, -1, 0);
+    plane.castShadow = true;
+    plane.receiveShadow = true;
+    group.add(plane);
+    scene.add(group);
+    // 여기까지
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 마우스가 움직였다면 onDocumentMouseMove 함수를 호출해라
+    document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+    // 마우스가 클릭되었다면 onDocumentClick 함수를 호출해라
+    document.addEventListener( 'click', onDocumentClick, false );
+    // 화면 크기가 바뀌었다면 onWindowResize 함수를 호출해라
+    window.addEventListener( 'resize', onWindowResize, false );
+}
+// 렌더링 코드 모음
+function animate() {
+    requestAnimationFrame(animate );
+    controls.update();
+    renderer.render(scene, camera);
+}
+</script>
+<style>
+#buttonanimation {
+        position:absolute;
+        left:30px; top:30px;
+        width:200px; height:20px;
+        background-color: #ffffff;
+        text-align: center;
+        color:#000000;
+}
+</style>
+</body>
+</html>
